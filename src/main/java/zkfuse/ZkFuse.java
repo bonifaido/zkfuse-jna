@@ -16,11 +16,11 @@ import java.util.Arrays;
 import java.util.List;
 
 
-public class ZookeeperFilesystem extends FuseFilesystemAdapterFull {
+public class ZkFuse extends FuseFilesystemAdapterFull {
 
     private final CuratorFramework curator;
 
-    public ZookeeperFilesystem(String connectString) {
+    public ZkFuse(String connectString) {
         this.curator = CuratorFrameworkFactory.newClient(connectString, new ExponentialBackoffRetry(1000, 5));
     }
 
@@ -143,9 +143,9 @@ public class ZookeeperFilesystem extends FuseFilesystemAdapterFull {
 
     public static void main(String[] args) throws Exception {
         if (args.length != 2) {
-            System.err.println("usage: zkfuse [connectString] [mountPoint]");
+            System.err.println("usage: java zkfuse.ZkFuse [connectString] [mountPoint]");
             System.exit(1);
         }
-        new ZookeeperFilesystem(args[0]).log(true).mount(args[1]);
+        new ZkFuse(args[0]).log(true).mount(args[1]);
     }
 }
