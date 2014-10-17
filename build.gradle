@@ -1,0 +1,21 @@
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'application'
+
+mainClassName = "zkfuse.ZkFuse"
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+    compile 'org.apache.curator:curator-framework:2.6.0'
+    compile 'org.slf4j:slf4j-simple:1.7.7'
+    compile project(':fuse-jna')
+
+    testCompile 'junit:junit:4.11'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.1'
+}
