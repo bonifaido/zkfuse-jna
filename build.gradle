@@ -1,6 +1,4 @@
-apply plugin: 'java'
 apply plugin: 'kotlin'
-apply plugin: 'idea'
 apply plugin: 'application'
 
 mainClassName = "zkfuse.ZkfusePackage"
@@ -21,6 +19,7 @@ dependencies {
 task wrapper(type: Wrapper) {
     gradleVersion = '2.1'
 }
+
 buildscript {
     ext.kotlin_version = '0.9.66'
     repositories {
@@ -30,6 +29,7 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
+
 sourceSets {
     main.java.srcDirs += 'src/main/kotlin'
 }
