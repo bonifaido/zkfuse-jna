@@ -4,16 +4,35 @@ apply plugin: 'application'
 mainClassName = "zkfuse.ZkfusePackage"
 
 repositories {
-  mavenCentral()
+    mavenCentral()
+    // TODO remove this block of repositories once curator 2.6.1 gets released
+    ivy {
+        url = 'https://builds.apache.org/job/Curator/org.apache.curator$curator-client/lastSuccessfulBuild/artifact/'
+    }
+    ivy {
+        url = 'https://builds.apache.org/job/Curator/org.apache.curator$curator-framework/lastSuccessfulBuild/artifact/'
+    }
+    ivy {
+        url = 'https://builds.apache.org/job/Curator/org.apache.curator$curator-recipes/lastSuccessfulBuild/artifact/'
+    }
 }
 
 dependencies {
-    compile 'org.apache.curator:curator-framework:2.6.0'
+    // TODO remove this block of dependencies once curator 2.6.1 gets released
+    compile 'org.apache.curator:curator-client:2.6.1-SNAPSHOT'
+    compile 'org.apache.curator:curator-framework:2.6.1-SNAPSHOT'
+    compile 'org.apache.curator:curator-recipes:2.6.1-SNAPSHOT'
+    compile('org.apache.zookeeper:zookeeper:3.4.6') {
+        exclude module: 'slf4j-log4j12'
+    }
+    compile 'com.google.guava:guava:16.0.1'
+    //////////////////////////////////////////////////////////////////////////
+
     compile 'org.slf4j:slf4j-simple:1.7.7'
     compile project(':fuse-jna')
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     testCompile 'junit:junit:4.11'
-    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 }
 
 task wrapper(type: Wrapper) {
