@@ -10,31 +10,47 @@ import net.fusejna.StructFuseFileInfo
 import net.fusejna.DirectoryFiller
 import java.nio.ByteBuffer
 import java.util.Arrays
+import org.apache.curator.framework.recipes.cache.TreeCache
+import org.apache.curator.framework.recipes.cache.TreeCacheListener
+import org.apache.curator.framework.recipes.cache.TreeCacheEvent
+import java.util.concurrent.CountDownLatch
 
 
 public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
 
     val curator = CuratorFrameworkFactory.newClient(connectString, ExponentialBackoffRetry(1000, 5))
+    val cache = TreeCache(curator, "/")
 
-    override fun init() = curator.start()
+    override fun init() {
+        curator.start()
+        val latch = CountDownLatch(1)
+        cache.getListenable().addListener(TreeCacheListener { _, e ->
+            if (e.getType() == TreeCacheEvent.Type.INITIALIZED) latch.countDown()
+        })
+        cache.start()
+        latch.await() // Wait until cache primes
+    }
 
-    override fun destroy() = curator.close()
+    override fun destroy() {
+        cache.close()
+        curator.close()
+    }
 
     override fun getattr(path: String, fsStat: StructStat.StatWrapper): Int {
-        try {
-            val zkStat = curator.checkExists().forPath(path)
-            if (zkStat.getNumChildren() > 0) {
-                fsStat.setMode(TypeMode.NodeType.DIRECTORY)
-            } else {
-                fsStat.setMode(TypeMode.NodeType.FILE)
-            }
-            fsStat.size(zkStat.getDataLength().toLong())
-            fsStat.ctime(zkStat.getCtime() / 1000)
-            fsStat.mtime(zkStat.getMtime() / 1000)
-            return 0
-        } catch (e: Exception) {
+        val data = cache.getCurrentData(path)
+        if (data == null) {
             return -ErrorCodes.ENOENT()
         }
+        val zkStat = data.getStat()
+        if (zkStat.getNumChildren() > 0) {
+            fsStat.setMode(TypeMode.NodeType.DIRECTORY)
+        } else {
+            fsStat.setMode(TypeMode.NodeType.FILE)
+        }
+        fsStat.size(zkStat.getDataLength().toLong())
+        fsStat.ctime(zkStat.getCtime() / 1000)
+        fsStat.mtime(zkStat.getMtime() / 1000)
+        return 0
     }
 
     override fun mkdir(path: String, mode: TypeMode.ModeWrapper): Int {
@@ -46,25 +62,24 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
     }
 
     private fun createZNode(path: String): Int {
+        if (cache.getCurrentData(path) != null) {
+            return -ErrorCodes.EEXIST()
+        }
         try {
-            if (curator.checkExists().forPath(path) != null) {
-                return -ErrorCodes.EEXIST()
-            }
             curator.create().forPath(path)
-            return 0
         } catch (e: Exception) {
             return -ErrorCodes.ENOENT()
         }
+        return 0
     }
 
     override fun readdir(path: String, filler: DirectoryFiller): Int {
-        try {
-            val children = curator.getChildren().forPath(path)
-            filler.add(children)
-            return 0
-        } catch (e: Exception) {
+        val children = cache.getCurrentChildren(path)
+        if (children == null) {
             return -ErrorCodes.ENOENT()
         }
+        filler.add(children.keySet())
+        return 0
     }
 
     override fun rename(path: String, newName: String): Int {
@@ -72,13 +87,12 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
     }
 
     override fun read(path: String, buffer: ByteBuffer, size: Long, offset: Long, info: StructFuseFileInfo.FileInfoWrapper): Int {
-        try {
-            val bytes = curator.getData().forPath(path)
-            buffer.put(bytes)
-            return bytes.size
-        } catch (e: Exception) {
+        val data = cache.getCurrentData(path)
+        if (data == null) {
             return -ErrorCodes.ENOENT()
         }
+        buffer.put(data.getData())
+        return data.getData().size
     }
 
     override // TODO fix
@@ -117,6 +131,8 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
             return ErrorCodes.ENOENT()
         }
     }
+
+    fun log() = log(true)
 }
 
 fun main(args: Array<String>) {
@@ -124,5 +140,5 @@ fun main(args: Array<String>) {
         System.err.println("usage: java -jar ZkFuse.jar [connectString] [mountPoint]")
         System.exit(1)
     }
-    ZkFuse(args[0]).mount(args[1])
+    ZkFuse(args[0]).log().mount(args[1])
 }
