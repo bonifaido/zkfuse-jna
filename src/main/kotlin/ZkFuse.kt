@@ -3,10 +3,8 @@ package zkfuse
 import net.fusejna.util.FuseFilesystemAdapterFull
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
-import net.fusejna.StructStat
 import net.fusejna.types.TypeMode
 import net.fusejna.ErrorCodes
-import net.fusejna.StructFuseFileInfo
 import net.fusejna.DirectoryFiller
 import java.nio.ByteBuffer
 import java.util.Arrays
@@ -14,6 +12,8 @@ import org.apache.curator.framework.recipes.cache.TreeCache
 import org.apache.curator.framework.recipes.cache.TreeCacheListener
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent
 import java.util.concurrent.CountDownLatch
+import net.fusejna.StructFuseFileInfo.FileInfoWrapper
+import net.fusejna.StructStat.StatWrapper
 
 
 public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
@@ -36,7 +36,7 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
         curator.close()
     }
 
-    override fun getattr(path: String, fsStat: StructStat.StatWrapper): Int {
+    override fun getattr(path: String, fsStat: StatWrapper): Int {
         val data = cache.getCurrentData(path)
         if (data == null) {
             return -ErrorCodes.ENOENT()
@@ -57,7 +57,7 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
         return createZNode(path)
     }
 
-    override fun create(path: String, mode: TypeMode.ModeWrapper, info: StructFuseFileInfo.FileInfoWrapper): Int {
+    override fun create(path: String, mode: TypeMode.ModeWrapper, info: FileInfoWrapper): Int {
         return createZNode(path)
     }
 
@@ -86,7 +86,7 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
         throw UnsupportedOperationException("rename")
     }
 
-    override fun read(path: String, buffer: ByteBuffer, size: Long, offset: Long, info: StructFuseFileInfo.FileInfoWrapper): Int {
+    override fun read(path: String, buffer: ByteBuffer, size: Long, offset: Long, info: FileInfoWrapper): Int {
         val data = cache.getCurrentData(path)
         if (data == null) {
             return -ErrorCodes.ENOENT()
@@ -96,7 +96,7 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
     }
 
     override // TODO fix
-    fun write(path: String, buf: ByteBuffer, bufSize: Long, writeOffset: Long, wrapper: StructFuseFileInfo.FileInfoWrapper): Int {
+    fun write(path: String, buf: ByteBuffer, bufSize: Long, writeOffset: Long, wrapper: FileInfoWrapper): Int {
         try {
             val bytes = curator.getData().forPath(path)
             val newBytes = Arrays.copyOf(bytes, (writeOffset + bufSize).toInt())
