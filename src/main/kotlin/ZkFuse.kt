@@ -66,7 +66,7 @@ public class ZkFuse(connectString: String) : FuseFilesystemAdapterFull() {
             return -ErrorCodes.EEXIST()
         }
         try {
-            curator.create().forPath(path)
+            curator.create().forPath(path, ByteArray(0))
         } catch (e: Exception) {
             return -ErrorCodes.ENOENT()
         }
